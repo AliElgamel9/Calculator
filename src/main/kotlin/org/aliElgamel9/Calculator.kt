@@ -123,6 +123,7 @@ class Calculator {
                 // if a parentheses came after a digit like 5(4+5) then convert it as 5*(4+5)
                 if (number.isNotEmpty() && number[0].isDigit())
                     with(implicitMultiple(calData)) { if(this.result.isNaN()) return this }
+                else if(i-1 >= 0 && closeBows.contains(value[i-1])) implicitMultiple(calData)
                 // open bow indicates the expression might be either (4+3) or cos(4+3)
                 val result = if (functionName.isEmpty()) calculate(value, i + 1, c)
                 else namedFunction(value, i, functionName, numbers)
@@ -169,10 +170,12 @@ class Calculator {
 
         private fun implicitMultiple(calData: CalculationData): OperationResult {
             return calData.run {
-                val result = convertStringToDouble(number).also { number = "" }
-                if (result.isNaN()) return OperationResult()
+                if (number.isNotEmpty())
+                    with(convertStringToDouble(number)) {
+                        number = ""; numbers.push(this)
+                        if (this.isNaN()) return OperationResult()
+                    }
                 operands.push('*')
-                numbers.push(result)
                 OperationResult(1.0)
             }
         }
