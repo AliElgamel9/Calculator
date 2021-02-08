@@ -9,8 +9,11 @@ you can use basic operators as +,-,*,/,%,^.
 available named functions cos, sin, tan, log, ln, abs and sqr. also you can use Permutations and Combinations the format is the same as in math nCr and nPr
 available bows to use (), [], {} and <>
 notes:
-log has 3 formats
-  1) log(num) 2) lognum(num)  3) log[num](num)
-|num| unfortunately not available yet, instead you use abs(num) function
+*log has 3 formats
+1) log(num) 
+2) lognum(num) 
+3) log[num](num)
+
+*|num| unfortunately not available yet, instead you use abs(num) function
 # features on progress
 detect the math error index and the type of the error. these features are still in progress so don't try to use them yet. They will give you meaningless information
