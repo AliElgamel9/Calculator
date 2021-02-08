@@ -26,9 +26,9 @@ class Calculator {
 
         // to edit data of calculation progress from other functions
         private data class CalculationData(
-            var functionName: String = "", var i: Int = 0,
-            val numbers: TerribleStack<Double> = TerribleStack(),
-            val operands: TerribleStack<Char> = TerribleStack(), var number: String = ""
+            var functionName: String = "", var i: Int = 0, var number: String = "",
+            val numbers: MutableList<Double> = MutableList(0){0.0},
+            val operands: MutableList<Char> = MutableList(0){' '}
         )
 
         /*
@@ -54,12 +54,14 @@ class Calculator {
                 var result = OperationResult(1.0)
                 // check if there is a remain number that not converted yet
                 if (number.isNotEmpty())
-                    convertStringToDouble(number).apply { result = OperationResult(this);numbers.push(this) }
+                    convertStringToDouble(number)
+                        .apply{ result = OperationResult(this);numbers.add(this) }
                 // return error if converting process failed
                 if (result.result.isNaN()) return result
                 // check if there is a remain function not calculated yet
                 if (functionName.isNotEmpty())
-                    namedFunction(value, i - 1, functionName, numbers).apply { result = this;  numbers.push(this.result)}
+                    namedFunction(value, i - 1, functionName, numbers)
+                        .apply { result = this;  numbers.add(this.result)}
                 // return error if calculate named function process failed
                 if (result.result.isNaN()) return result
                 // calculate all operators that doesn't include letters or bows then return the result
@@ -144,15 +146,15 @@ class Calculator {
                 if (numbers.size == operands.size) {
                     with(convertStringToDouble(number)){
                         if (this.isNaN()) return OperationResult()
-                        numbers.push(this)
+                        numbers.add(this)
                     }. also{ number = "" }
                 }
                 // if expression alike 5! or 5% then insert Double.NaN that will not be used in calculations
                 // but indicates that no error might occurs
                 if (halfOperators.contains(c) || (multiOperators.contains(c) &&
                             (i + 1 == value.length || !value[i + 1].isDigit())))
-                    numbers.push(Double.NaN)
-                operands.push(c)
+                    numbers.add(Double.NaN)
+                operands.add(c)
                 OperationResult(1.0)
             }
         }
@@ -160,7 +162,7 @@ class Calculator {
         private fun applyNamedFunctionResult(operationResult: OperationResult, calData: CalculationData) {
             calData.apply {
                 operationResult.let {
-                    numbers.push(it.result)
+                    numbers.add(it.result)
                     i = it.terminateAt
                     number = ""
                     functionName = ""
@@ -172,16 +174,16 @@ class Calculator {
             return calData.run {
                 if (number.isNotEmpty())
                     with(convertStringToDouble(number)) {
-                        number = ""; numbers.push(this)
+                        number = ""; numbers.add(this)
                         if (this.isNaN()) return OperationResult()
                     }
-                operands.push('*')
+                operands.add('*')
                 OperationResult(1.0)
             }
         }
         // control flow of calculations of named functions
         private fun namedFunction(value: String, startAt: Int, functionName: String,
-                                  numbers: TerribleStack<Double>
+                                  numbers: MutableList<Double>
         ): OperationResult {
             return when (functionName) {
                 "cos" -> namedFunctionWithBow(value, startAt, '(', "cos")
@@ -199,9 +201,8 @@ class Calculator {
         }
 
         fun namedFunctionWithBow(
-            value: String, startAt: Int = 0, expectOpenBow: Char,
-            functionName: String
-        ): OperationResult {
+            value: String, startAt: Int = 0, expectOpenBow: Char, functionName: String):
+                OperationResult {
             // not fount the expected bow then there is an error would happen
             if (value[startAt] != expectOpenBow)
                 return OperationResult(Double.NaN, startAt, "'(' parentheses not found")
@@ -220,14 +221,14 @@ class Calculator {
         }
         // functions that's need 2 numbers one before and one after. It has format n[function name]r as nCr
         private fun multiNamedFunctions(value: String, startAt: Int, functionName: String,
-                                        numbers: TerribleStack<Double>
+                                        numbers: MutableList<Double>
         ): OperationResult {
-            val iBeforeNamedFunction = startAt-1-functionName.length
+            val iBefore = startAt-1-functionName.length
             // before the function should be number or close bow
-            if (numbers.empty() || iBeforeNamedFunction< 0 || !(value[iBeforeNamedFunction].isDigit() ||
-                        closeBows.contains(value[iBeforeNamedFunction]))) return OperationResult()
+            if (numbers.isEmpty() || iBefore< 0 || !(value[iBefore].isDigit() ||
+                        closeBows.contains(value[iBefore]))) return OperationResult()
             // the number before it
-            val n = numbers.getLast()
+            val n = numbers.removeLast()
             val r: Double
             var endAt: Int = value.length
             // the next number is surrounded by bows
@@ -301,42 +302,42 @@ class Calculator {
             }
         }
 
-        private fun calculateSingleOperators(numbers: TerribleStack<Double>, operands: TerribleStack<Char>):
-                OperationResult {
+        private fun calculateSingleOperators(numbers: MutableList<Double>,
+                                             operands: MutableList<Char>): OperationResult {
             // if operators equals operands then return error
             if (numbers.size != operands.size + 1) return OperationResult()
-            // if stack has only one number then return this number
-            if (numbers.size == 1) return OperationResult(numbers.pop())
-            // declaring 2 stacks to insert reduced expressions on it
-            var newNumbers: TerribleStack<Double>
-            var newOperands: TerribleStack<Char>
-            // hold 2 stacks that has information of calculations
-            var currentNumbers = numbers
-            var currentOperands = operands
+            // if list has only one number then return this number
+            if (numbers.size == 1) return OperationResult(numbers.removeLast())
+
+            // to ignore last elements without deleting this elements
+            var newSize = operands.size
+            // It's a queue with no queue class
             for (singleOperands in operatorsPriority) {
-                newNumbers = TerribleStack()
-                newOperands = TerribleStack()
+                // start add new numbers from here
+                var headAdd = 0
+                // start to take numbers from here and make operation on them
+                var headRemove = -1
+
                 var a: Double? = null
                 // exit loop when operands are empty
-                while (!currentOperands.empty()) {
-                    // take one operand with 2 numbers, the first number might be the result from the previous operand
-                    val operand = currentOperands.pop()
-                    if (a == null) a = currentNumbers.pop()
+                while (++headRemove != newSize) {
+
+                    val operand = operands[headRemove]
+                    if (a == null) a = numbers[headRemove]
                     if (singleOperands.contains(operand)) {
-                        val b = currentNumbers.pop()
+                        val b = numbers[headRemove + 1]
                         a = calculateSingleOperators(a, b, operand)
                     } else {
-                        newNumbers.push(a).also { a = null }
-                        newOperands.push(operand)
+                        numbers[headAdd] = a
+                        operands[headAdd++] = operand
+                        a = null
                     }
                 }
-                if (a != null) newNumbers.push(a!!)
-                if (!currentNumbers.empty()) newNumbers.push(currentNumbers.pop())
-                // assign 2 stacks that has information of calculations to new stack that has reduced expression
-                currentNumbers = newNumbers
-                currentOperands = newOperands
+                if (a != null) numbers[headAdd++] = a
+                else numbers[headAdd] = numbers[newSize]
+                newSize = headAdd
             }
-            val result = currentNumbers.pop()
+            val result = numbers[0]
             if (result.isNaN()) return OperationResult(errorMessage = "wrong operations")
             return OperationResult(result)
         }
@@ -371,25 +372,3 @@ class Calculator {
     }
 }
 data class OperationResult(val result:Double=Double.NaN, var terminateAt:Int=-1, val errorMessage:String?=null)
-
-class TerribleStack<E> {
-    private val list = mutableListOf<E>()
-    var lastPopIndex = 0
-
-    fun push(e: E) {
-        list.add(e)
-    }
-
-    fun empty(): Boolean = lastPopIndex == list.size
-
-    fun pop(): E = list[lastPopIndex++]
-
-    fun getLast(): E {
-        val temp = list[list.size - 1]
-        list.removeLast()
-        return temp
-    }
-
-    val size: Int
-        get() = list.size - lastPopIndex
-}
