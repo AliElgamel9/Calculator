@@ -19,9 +19,6 @@ class Calculator {
         private const val openBows = "(<[{"
         private const val closeBows = ")>]}"
 
-        // special keywords
-        private val specialKeyWords = mapOf("PI" to Math.PI, "e" to Math.E)
-
         // simple calculate method for user
         fun calculate(value: String): OperationResult {
             return calculate(value, 0)
@@ -182,7 +179,8 @@ class Calculator {
         private fun implicitMultiple(calData: CalculationData): OperationResult {
             return calData.run {
                 // 1- 3(4)
-                if (number.isNotEmpty() && number[0] != '-' && number[0] != '+'){
+                if (number.isNotEmpty() && ((number[0] != '-' && number[0] != '+') ||
+                    number.length > 1)){
                     with(convertStringToDouble(number)) {
                         number = ""
                         numbers.add(this)

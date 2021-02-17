@@ -1,6 +1,9 @@
 import org.aliElgamel9.*
+import org.junit.jupiter.api.Assertions
 
 fun main(){
+    val result = Calculator.calculate("-6eee")
+    Assertions.assertEquals("-120.513", "%.3f".format(result.result))
     // write your function
     println(Calculator.calculate("cos(log(10)*ln(e))").result.toString().
     replaceLast('E',"*10^"))
