@@ -25,10 +25,16 @@ internal class CalculatorTest{
         var result = Calculator.calculate("abs(-4)")
         assertEquals("4.000", "%.3f".format(result.result))
 
+        result = Calculator.calculate("2^-3")
+        assertEquals("0.125", "%.3f".format(result.result))
+
+        result = Calculator.calculate("-2^3")
+        assertEquals("-8.000", "%.3f".format(result.result))
+
         result = Calculator.calculate("cos(60)4")
         assertEquals("NaN", "%.3f".format(result.result))
 
-        result = Calculator.calculate("6cos(60)")
-        assertEquals("3.000", "%.3f".format(result.result))
+        result = Calculator.calculate("-6cos(60)")
+        assertEquals("-3.000", "%.3f".format(result.result))
     }
 }

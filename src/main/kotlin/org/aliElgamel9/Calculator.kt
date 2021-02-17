@@ -19,6 +19,9 @@ class Calculator {
         private const val openBows = "(<[{"
         private const val closeBows = ")>]}"
 
+        // special keywords
+        private val specialKeyWords = mapOf("PI" to Math.PI, "e" to Math.E)
+
         // simple calculate method for user
         fun calculate(value: String): OperationResult {
             return calculate(value, 0)
@@ -79,11 +82,11 @@ class Calculator {
                     c.isDigit() || c == '.' -> number += c //digit
                     (c == '+' || c == '-') && numbers.size == operands.size &&
                             (number.isEmpty() || !number[0].isDigit()) -> number = inverseSign(number, c) //sign
-                    c.isLetter() -> return facingNamedFunction(calData, c) //first letter of a function
-                    openBows.contains(c) -> return facingOpenBow(calData, value, c)
-                    closeBows.contains(c) -> return if (openBow == null || perfectBow.find { it[1] == c }?.get(0) != openBow)
-                        OperationResult(Double.NaN, i, "error bow") else OperationResult(errorMessage = "break")
-                    else -> return remainOperators(calData, value, c)
+                    c.isLetter() -> return facingNamedFunction(this, c, value) //first letter of a function
+                    openBows.contains(c) -> return facingOpenBow(this, value, c)
+                    closeBows.contains(c) -> return if (openBow != null || perfectBow.find { it[1] == c }?.get(0) == openBow)
+                     OperationResult(errorMessage = "break") else OperationResult(Double.NaN, i, "error bow")
+                    else -> return remainOperators(this, value, c)
                 }
                 OperationResult(1.0)
             }
@@ -111,30 +114,36 @@ class Calculator {
             return number
         }
 
-        private fun facingNamedFunction(calData: CalculationData, c: Char): OperationResult {
+        private fun facingNamedFunction(calData: CalculationData, c: Char, value:String): OperationResult {
             return calData.run {
-                functionName += c
-                // if a function came after a digit like 4log10 then convert it as 4*log10
-                if (number.isNotEmpty() && number[0].isDigit()) return implicitMultiple(calData)
+                // if a function came after a digit like 4log(10) then convert it as 4*log(10)
+                with(implicitMultiple(calData)){if(result.isNaN()) return this}
+                val checkSign = if(number.isNotEmpty() && number[0] == '-') -1 else 1
+                if(c == 'e'){
+                    numbers.add(Math.E * checkSign)
+                    number = ""
+                }else if(c == 'P' && i+1<value.length && value[i+1] == 'I'){
+                    numbers.add(Math.PI * checkSign)
+                    i+=2
+                    number = ""
+                } else
+                    functionName += c
                 OperationResult(1.0)
             }
         }
 
         private fun facingOpenBow(calData: CalculationData, value: String, c: Char): OperationResult {
             return calData.run {
-                // if a parentheses came after a digit like 5(4+5) then convert it as 5*(4+5)
-                if (number.isNotEmpty() && number[0].isDigit())
-                    with(implicitMultiple(calData)) { if(this.result.isNaN()) return this }
-                else if(i-1 >= 0 && closeBows.contains(value[i-1])) implicitMultiple(calData)
+                // detect implicit multiple (5)(5) | 6(5) | e(5)
+                with(implicitMultiple(calData)) { if(this.result.isNaN()) return this }
                 // open bow indicates the expression might be either (4+3) or cos(4+3)
                 val result = if (functionName.isEmpty()) calculate(value, i + 1, c)
                 else namedFunction(value, i, functionName, numbers)
                 if (result.result.isNaN()) return result
                 // if number has negative sign then inverse sign of the result
                 if(number.isNotEmpty() && number[0] == '-')
-                    applyNamedFunctionResult(
-                        OperationResult(-result.result,
-                            result.terminateAt, result.errorMessage), calData)
+                    applyNamedFunctionResult(OperationResult(-result.result,
+                        result.terminateAt, result.errorMessage), calData)
                 else applyNamedFunctionResult(result, calData)
                 OperationResult(1.0)
             }
@@ -172,12 +181,17 @@ class Calculator {
 
         private fun implicitMultiple(calData: CalculationData): OperationResult {
             return calData.run {
-                if (number.isNotEmpty())
+                // 1- 3(4)
+                if (number.isNotEmpty() && number[0] != '-' && number[0] != '+'){
                     with(convertStringToDouble(number)) {
-                        number = ""; numbers.add(this)
+                        number = ""
+                        numbers.add(this)
                         if (this.isNaN()) return OperationResult()
                     }
-                operands.add('*')
+                    operands.add('*')
+                } // 2- (4)(5) || e(5) which could be detected by the numbers and operands size
+                else if(numbers.size - 1 == operands.size)
+                    operands.add('*')
                 OperationResult(1.0)
             }
         }
