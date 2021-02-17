@@ -121,7 +121,7 @@ class Calculator {
                     number = ""
                 }else if(c == 'P' && i+1<value.length && value[i+1] == 'I'){
                     numbers.add(Math.PI * checkSign)
-                    i+=2
+                    i++
                     number = ""
                 } else
                     functionName += c
